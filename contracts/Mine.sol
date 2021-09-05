@@ -34,6 +34,36 @@ contract Mine is ERC1155, ReentrancyGuard {
         "Coal"
     ];
 
+    /** Probability of Ores & Gems (out of 1000) */
+    uint16[] private chance = [
+        1, // "Diamond"
+        10, // "Ruby"
+        50, // "Emerald"
+        80, // "Sapphire"
+        10, // "Buterinium Ore"
+        50, // "Calamitite Ore"
+        100, // "Trillium Ore"
+        250, // "Mithril Ore"
+        400, // "Pyrite Ore"
+        600, // "Iron Ore"
+        1000 // "Coal"
+    ];
+
+    /** Probability of Ores & Gems (out of 1000) */
+    uint16[] private amountDivisor = [
+        1, // "Diamond"
+        10, // "Ruby"
+        50, // "Emerald"
+        80, // "Sapphire"
+        10, // "Buterinium Ore"
+        25, // "Calamitite Ore"
+        50, // "Trillium Ore"
+        125, // "Mithril Ore"
+        200, // "Pyrite Ore"
+        200, // "Iron Ore"
+        1000 // "Coal"
+    ];
+
     uint16 private STEP = 10**3;
 
     // TODO: look into 1155 URIs
@@ -57,54 +87,28 @@ contract Mine is ERC1155, ReentrancyGuard {
 
     function _mine(uint256 loot) internal {
         uint8 capacity = 8;
-
         uint256 rand = random(string(abi.encodePacked(loot)));
         console.log("rand:", rand);
         uint8 index = 0;
 
-        while (capacity > 0) {
+        while (capacity > 0 && index < COAL) {
             uint16 haul = uint16(rand % STEP);
-            console.log("haul:", haul);
+            console.log("haul:", index, haul);
 
-            if (index == DIAMOND && haul < 1) {
-                _mint(msg.sender, DIAMOND, 1, "");
-                capacity = capacity - 1;
-            } else if (index == RUBY && haul < 10) {
-                _mint(msg.sender, RUBY, 1, "");
-                capacity = capacity - 1;
-            } else if (index == EMERALD && haul < 50) {
-                _mint(msg.sender, EMERALD, 1, "");
-                capacity = capacity - 1;
-            } else if (index == SAPPHIRE && haul < 80) {
-                _mint(msg.sender, SAPPHIRE, 1, "");
-                capacity = capacity - 1;
-            } else if (index == BUTERINIUM && haul < 10) {
-                _mint(msg.sender, BUTERINIUM, 1, "");
-                capacity = capacity - 1;
-            } else if (index == CALAMITITE && haul < 50) {
-                _mint(msg.sender, CALAMITITE, 1, "");
-                capacity = capacity - 1;
-            } else if (index == TRILLIUM && haul < 100) {
-                _mint(msg.sender, TRILLIUM, 1, "");
-                capacity = capacity - 1;
-            } else if (index == PYRITE && haul < 250) {
-                _mint(msg.sender, PYRITE, 1, "");
-                capacity = capacity - 1;
-            } else if (index == MITHRIL && haul < 400) {
-                _mint(msg.sender, MITHRIL, 1, "");
-                capacity = capacity - 1;
-            } else if (index == IRON && haul < 601) {
-                uint8 amount = min(uint8(haul / 200), capacity);
-                _mint(msg.sender, IRON, amount, "");
+            if (haul < chance[index]) {
+                uint8 amount = min(
+                    uint8(haul / amountDivisor[index]) + 1,
+                    capacity
+                );
+                _mint(msg.sender, index, amount, "");
                 capacity = capacity - amount;
-            } else if (index == COAL) {
-                _mint(msg.sender, COAL, capacity, "");
-                capacity = 0;
             }
 
             rand = rand / STEP;
             index = index + 1;
         }
+        // finally, fill all remaining slots with coal
+        _mint(msg.sender, COAL, capacity, "");
     }
 
     function mine(uint256 loot) public nonReentrant {
