@@ -5,10 +5,13 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Mine is ERC1155, ReentrancyGuard {
-    IERC721 immutable lootContract;
-    IERC721 immutable mLootContract;
+contract Mine is ERC1155, Ownable, ReentrancyGuard {
+    address public constant lootContractAddress =
+        0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7;
+    address public constant mLootContractAddress =
+        0x1dfe7Ca09e99d10835Bf73044a23B73Fc20623DF;
 
     /** Ores & Gems */
     uint256 public constant DIAMOND = 0x0;
@@ -22,7 +25,6 @@ contract Mine is ERC1155, ReentrancyGuard {
     uint256 public constant PYRITE = 0x8;
     uint256 public constant IRON = 0x9;
     uint256 public constant COAL = 0xA;
-    // note: if new ores are added they will not receive a public constant
 
     /** Display name of Ores & Gems */
     string[] public names = [
@@ -39,8 +41,11 @@ contract Mine is ERC1155, ReentrancyGuard {
         "Coal"
     ];
 
+    /** Mapping of item contract addresses; if true, this item makes player eligible to mine */
+    mapping(address => bool) public eligibleBags;
+
     /// @notice record of the last timestamp each loot bag mined
-    mapping(uint256 => uint256) public lastMinedTime;
+    mapping(address => mapping(uint256 => uint256)) public lastMinedTime;
 
     /// @notice the minimum recharge time necessary between each mine, per loot bag
     uint256 public RECHARGE_TIME = 86400;
@@ -78,12 +83,6 @@ contract Mine is ERC1155, ReentrancyGuard {
         1000 // "Coal"
     ];
 
-    /** Probability of Ores & Gems (out of 1000) */
-    address[] private eligibleBags = [
-        0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7, // Loot (original)
-        0x1dfe7Ca09e99d10835Bf73044a23B73Fc20623DF // mLoot
-    ];
-
     uint16 private STEP = 10**3;
 
     event EligibleBagAdded(address indexed bagAddress);
@@ -92,9 +91,16 @@ contract Mine is ERC1155, ReentrancyGuard {
     event OreTypeAdded(string name, uint16 chance, uint16 amountDivisor);
 
     // TODO: look into 1155 URIs
-    constructor() public ERC1155("https://game.example/api/item/{id}.json") {
-        lootContract = IERC721(eligibleBags[0]);
-        mLootContract = IERC721(eligibleBags[1]);
+    constructor()
+        public
+        Ownable()
+        ERC1155("https://game.example/api/item/{id}.json")
+    {
+        eligibleBags[lootContractAddress] = true;
+        eligibleBags[mLootContractAddress] = true;
+
+        // Transfer ownership to the Loot DAO
+        transferOwnership(0xcD814C83198C15A542F9A13FAf84D518d1744ED1);
 
         _mint(msg.sender, DIAMOND, 1, "");
         // _mint(msg.sender, RUBY, 1, "");
@@ -110,18 +116,17 @@ contract Mine is ERC1155, ReentrancyGuard {
     }
 
     function random(string memory input) internal pure returns (uint256) {
-        //return uint256(keccak256(abi.encodePacked(block.basefee, blockhash(block.number-1), msg.sender, input)));
         return uint256(keccak256(abi.encodePacked(input)));
     }
 
-    function _mine(uint256 loot) internal {
+    function _mine(uint256 itemId, address bagAddress) internal {
         uint8 capacity = CAPACITY;
         uint256 rand = random(
             string(
                 abi.encodePacked(
                     block.timestamp,
                     blockhash(block.number - 1),
-                    loot
+                    itemId
                 )
             )
         );
@@ -145,13 +150,27 @@ contract Mine is ERC1155, ReentrancyGuard {
         }
         // finally, fill all remaining slots with coal
         _mint(msg.sender, COAL, capacity, "");
+        lastMinedTime[bagAddress][itemId] = block.timestamp;
     }
 
-    function mine(uint256 loot) public nonReentrant {
-        // require(isEligiblePlayer(loot), "Sender does not own eligible loot");
-        // require(block.timestamp > lastMinedTime[loot] + RECHARGE_TIME);
-        _mine(loot);
-        lastMinedTime[loot] = block.timestamp;
+    function mine(uint256 itemId, address bagAddress) public nonReentrant {
+        // require(isEligiblePlayer(itemId, bagAddress), "Sender does not own eligible loot");
+        // require(block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME);
+        _mine(itemId, bagAddress);
+    }
+
+    /// @notice convenience function for holders of original Loot and mLoot
+    /// @param loot: the ID of your loot (0,8001) or mLoot (8000+)
+    function mineWithLoot(uint256 loot) public nonReentrant {
+        if (loot > 0 && loot < 8001) {
+            // require(isEligiblePlayer(itemId, lootContractAddress), "Sender does not own eligible loot");
+            // require(block.timestamp > lastMinedTime[lootContractAddress][itemId] + RECHARGE_TIME);
+            _mine(loot, lootContractAddress);
+        } else if (loot > 8000 && loot < (block.number / 10) + 1) {
+            // require(isEligiblePlayer(itemId, mLootContractAddress), "Sender does not own eligible mLoot");
+            // require(block.timestamp > lastMinedTime[mLootContractAddress][itemId] + RECHARGE_TIME);
+            _mine(loot, mLootContractAddress);
+        }
     }
 
     /// @notice returns the minimum of a or b
@@ -159,23 +178,18 @@ contract Mine is ERC1155, ReentrancyGuard {
         return a < b ? a : b;
     }
 
-    function addEligibleBag(address bagAddress) public {
-        // TODO: restrict to governance contract only
+    function addEligibleBag(address bagAddress) public onlyOwner {
         // TODO: require the address is an NFT and won't break the code
-        eligibleBags.push(bagAddress);
+        eligibleBags[bagAddress] = true;
         emit EligibleBagAdded(bagAddress);
     }
 
-    function setRechargeTime(uint256 newRechargeTime) public {
-        // TODO: restrict to governance contract only
-        // TODO: require the address is an NFT and won't break the code
+    function setRechargeTime(uint256 newRechargeTime) public onlyOwner {
         RECHARGE_TIME = newRechargeTime;
         emit RechargeTimeUpdated(newRechargeTime);
     }
 
-    function setCapacity(uint8 newCapacity) public {
-        // TODO: restrict to governance contract only
-        // TODO: require the address is an NFT and won't break the code
+    function setCapacity(uint8 newCapacity) public onlyOwner {
         CAPACITY = newCapacity;
         emit CapacityUpdated(newCapacity);
     }
@@ -184,11 +198,9 @@ contract Mine is ERC1155, ReentrancyGuard {
         string calldata newName,
         uint16 newChance,
         uint16 newAmountDivisor
-    ) public {
+    ) public onlyOwner {
         require(newChance > 0, "Chance cannot be zero");
         require(newAmountDivisor > 0, "amountDivisor cannot be zero");
-
-        // TODO: restrict to governance contract only
 
         names.push(newName);
         chance.push(newChance);
@@ -197,16 +209,16 @@ contract Mine is ERC1155, ReentrancyGuard {
     }
 
     /// @notice returns true if msg.sender owns the specified loot bag
-    function isEligiblePlayer(uint256 loot) public view returns (bool) {
-        if (loot > 0 && loot < 8001) {
-            if (msg.sender == lootContract.ownerOf(loot)) {
-                return true;
-            }
-        } else if (loot > 8000 && loot < (block.number / 10) + 1) {
-            if (msg.sender == mLootContract.ownerOf(loot)) {
-                return true;
-            }
-        }
-        return false;
+    function isEligiblePlayer(uint256 itemId, address bagAddress)
+        public
+        view
+        returns (bool)
+    {
+        require(eligibleBags[bagAddress], "Bag address is not eligible");
+        require(
+            msg.sender == IERC721(bagAddress).ownerOf(itemId),
+            "Sender does not own item ID"
+        );
+        return true;
     }
 }

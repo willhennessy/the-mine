@@ -57,9 +57,9 @@ describe("Mine", function () {
     const mine = await Mine.deploy() as Mine;
     await mine.deployed();
 
-    await mine.mine(1);
-    await mine.connect(addrs[1]).mine(2);
-    await mine.connect(addrs[2]).mine(3);
+    await mine.mineWithLoot(1);
+    await mine.connect(addrs[1]).mineWithLoot(2);
+    await mine.connect(addrs[2]).mineWithLoot(3);
 
     logAccountBalances(mine, [addrs[0].address, addrs[1].address, addrs[2].address]);
   });
