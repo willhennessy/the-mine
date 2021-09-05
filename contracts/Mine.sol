@@ -90,11 +90,9 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     event RechargeTimeUpdated(uint256 indexed rechargeTime);
     event OreTypeAdded(string name, uint16 chance, uint16 amountDivisor);
 
-    // TODO: look into 1155 URIs
     constructor()
-        public
         Ownable()
-        ERC1155("https://game.example/api/item/{id}.json")
+        ERC1155("https://lootproject.com/api/mine/{id}.json")
     {
         eligibleBags[lootContractAddress] = true;
         eligibleBags[mLootContractAddress] = true;
