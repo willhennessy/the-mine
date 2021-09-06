@@ -549,17 +549,46 @@ describe("Mine", function () {
 
   */
 
-  /*
-  it("Task: print aggregate result of 1000 mines", async function () {
-    const addrs = await ethers.getSigners();
-    const Mine = await ethers.getContractFactory("Mine") as Mine__factory;
-    const mine = await Mine.deploy() as Mine;
-    await mine.deployed();
+  /* Uncomment to run a batch of 1,000 mines for analysis
+     // NOTE: you need to comment out the RechargeTime check in mineWithLoot function in Mine.sol
+    describe("Run 1,000 test mines and log aggregate result", function () {
+      it("Task: print aggregate result of 1000 mines", async function () {
+        this.timeout(100000000);
 
-    for (let i = 0; i < 1000; i++) {
-      await mine.mineWithLoot(1);
-    }
-    await logAccountBalance(mine, addrs[0].address);
-  });
+        const addrs = await ethers.getSigners();
+        const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+        const mine = await mineFactory.deploy() as Mine;
+        await mine.deployed();
+
+        await hre.network.provider.request({
+          method: "hardhat_impersonateAccount",
+          params: [ADDR_WITH_LOOT_AND_MLOOT],
+        });
+      
+        const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
+      
+        // build the TransactionRequest.data parameter
+        const functionParams = [
+          LOOT_ID,
+        ];  
+        const data = mineFactory.interface.encodeFunctionData("mineWithLoot", functionParams);
+      
+        // mine 1,000 times
+        for (let i = 0; i < 1000; i++) {
+          await signer.sendTransaction({
+            to: mine.address,
+            from: signer.address,
+            data: data,
+          });
+        }
+      
+        await hre.network.provider.request({
+          method: "hardhat_stopImpersonatingAccount",
+          params: [ADDR_WITH_LOOT_AND_MLOOT],
+        });
+
+        await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
+      });
+    });
   */
 });

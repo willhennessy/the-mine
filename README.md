@@ -4,7 +4,7 @@ Grab your pickaxe! The Mine is an open source area for Loot players to dig for r
 
 # Adventurers
 
-Pack up your loot and hit the mines to start digging for rare ore and gems! 
+Pack up your loot and hit the mines to start digging for rare ore and gems!
 
 ## Who can play
 
@@ -16,13 +16,34 @@ All wallets holding [Loot](https://etherscan.io/address/0xff9c1b15b16263c61d017e
 2. You will receive 8 random ores and gems ranging from common to rare (ERC-1155 tokens)
 3. Each bag of Loot or mLoot may mine once per recharge period, which is currently 24hrs and configurable by AGLD Governance.
 
+## Ore
+
+| Ore            | Probability of Mining | Amount Mined |
+| -------------- | --------------------- | ------------ |
+| Buterinium Ore | 1 in 50               | 1-2          |
+| Calamitite Ore | 1 in 16.6             | 1-2          |
+| Trillium Ore   | 1 in 6.6              | 1-3          |
+| Mithril Ore    | 1 in 3.3              | 1-3          |
+| Pyrite Ore     | 1 in 2.2              | 1-3          |
+| Iron Ore       | 1 in 1.4              | 1-5          |
+| Coal           | 1 in 1                | 1-8          |
+
+## Gems
+
+| Gem      | Probability of Mining | Amount Mined |
+| -------- | --------------------- | ------------ |
+| Diamond  | 1 in 200              | 1            |
+| Ruby     | 1 in 100              | 1            |
+| Emerald  | 1 in 20               | 1            |
+| Sapphire | 1 in 12.5             | 1            |
+
 # Developers
 
 **1. Install dependencies >** `yarn install`
 
 **2. Compile the contracts >** `yarn hardhat compile`
 
-**3. Run the unit tests >** ```yarn hardhat test```
+**3. Run the unit tests >** `yarn hardhat test`
 
 **4. Deploy contracts >** `yarn hardhat run scripts/deploy.ts`
 
@@ -30,15 +51,15 @@ All wallets holding [Loot](https://etherscan.io/address/0xff9c1b15b16263c61d017e
 
 The Mine is governed by [AGLD](https://etherscan.io/address/0x32353a6c91143bfd6c7d363b546e62a9a2489a20#code) Governance. The following actions are available:
 
-* `addEligibleBag(address bagAddress)` > add new ERC721 addresses to the list of addresses that are eligible to play in The Mine. Initially: [Loot](https://etherscan.io/address/0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7) and [mLoot](https://etherscan.io/address/0x1dfe7Ca09e99d10835Bf73044a23B73Fc20623DF).
-* `setRechargeTime(uint256 newRechargeTime)` > update the recharge time required between mines for a bag of loot. Initially: 86,400 (24hrs)
-* `setCapacity(uint8 newCapacity)` > update the capacity of a miner's sack for each miner. Initially: 8 pieces per mine.
-* `addOreType(string calldata newName, uint16 newChance, uint16 newAmountDivisor)` > create a new Ore or Gem type for Miners to discover!
+- `addEligibleBag(address bagAddress)` > add new ERC721 addresses to the list of addresses that are eligible to play in The Mine. Initially: [Loot](https://etherscan.io/address/0xff9c1b15b16263c61d017ee9f65c50e4ae0113d7) and [mLoot](https://etherscan.io/address/0x1dfe7Ca09e99d10835Bf73044a23B73Fc20623DF).
+- `setRechargeTime(uint256 newRechargeTime)` > update the recharge time required between mines for a bag of loot. Initially: 86,400 (24hrs)
+- `setCapacity(uint8 newCapacity)` > update the capacity of a miner's sack for each miner. Initially: 8 pieces per mine.
+- `addOreType(string calldata newName, uint16 newChance, uint16 newAmountDivisor)` > create a new Ore or Gem type for Miners to discover!
 
 # Future work
 
-* The Forge (for Adventurers)
-* Web interface for mining: mine button, display recharge time of each bag, display mining inventory
+- The Forge (for Adventurers)
+- Web interface for mining: mine button, display recharge time of each bag, display mining inventory
 
 # Disclaimer
 

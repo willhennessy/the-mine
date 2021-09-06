@@ -56,30 +56,30 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
 
     /** Probability of Ores & Gems (out of 1000) */
     uint16[] internal chance = [
-        1, // Diamond
+        5, // Diamond
         10, // Ruby
         50, // Emerald
         80, // Sapphire
-        10, // Buterinium Ore
-        50, // Calamitite Ore
-        100, // Trillium Ore
-        250, // Mithril Ore
-        400, // Pyrite Ore
-        600, // Iron Ore
+        20, // Buterinium Ore
+        60, // Calamitite Ore
+        150, // Trillium Ore
+        300, // Mithril Ore
+        450, // Pyrite Ore
+        700, // Iron Ore
         1000 // Coal
     ];
 
     /** Probability of Ores & Gems (out of 1000) */
     uint16[] internal amountDivisor = [
-        1, // Diamond
+        5, // Diamond
         10, // Ruby
         50, // Emerald
         80, // Sapphire
         10, // Buterinium Ore
-        25, // Calamitite Ore
+        30, // Calamitite Ore
         50, // Trillium Ore
         125, // Mithril Ore
-        200, // Pyrite Ore
+        150, // Pyrite Ore
         200, // Iron Ore
         1000 // Coal
     ];
@@ -100,8 +100,6 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
 
         // Transfer ownership to the Loot DAO
         transferOwnership(0xcD814C83198C15A542F9A13FAf84D518d1744ED1);
-
-        // _mint(msg.sender, DIAMOND, 1, "");
     }
 
     function random(string memory input) internal pure returns (uint256) {
