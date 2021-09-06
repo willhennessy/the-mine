@@ -52,6 +52,29 @@ async function logAccountBalance(mine: Mine, address: string) {
   console.table(await getBalances(mine, address));
 }
 
+async function mineFromAddress(mine: Mine, addr: string, loot: number) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [addr],
+  });
+
+  const signer = await ethers.getSigner(addr); 
+  const data = (await mine.mine(loot, LOOT_CONTRACT_ADDRESS)).data;
+
+  expect(
+    await signer.sendTransaction({
+      to: mine.address,
+      from: signer.address,
+      data: data,
+    })
+  ).to.emit(mine, 'TransferSingle');
+
+  await hre.network.provider.request({
+    method: "hardhat_stopImpersonatingAccount",
+    params: [ADDR_WITH_LOOT_AND_MLOOT],
+  });
+}
+
 describe("Mine", function () {
   it("Should construct the contract with correct values and owner", async function () {
     const [owner, addr1] = await ethers.getSigners();
@@ -95,31 +118,11 @@ describe("Mine", function () {
     const mine = await Mine.deploy() as Mine;
     await mine.deployed();
 
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [ADDR_WITH_LOOT_AND_MLOOT],
-    });
-
-    const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
-    const data = (await mine.mine(1, LOOT_CONTRACT_ADDRESS)).data;
-
-    expect(
-      await signer.sendTransaction({
-        to: mine.address,
-        from: signer.address,
-        data: data,
-      })
-    ).to.emit(mine, 'TransferSingle');
-
-    await logAccountBalance(mine, signer.address);
-
-    expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, 1))
+    await mineFromAddress(mine, ADDR_WITH_LOOT_AND_MLOOT, 1);
+    
+    await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
+    expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))
       .to.be.above(BigNumber.from(0));
-
-    await hre.network.provider.request({
-      method: "hardhat_stopImpersonatingAccount",
-      params: [ADDR_WITH_LOOT_AND_MLOOT],
-    });
   });
 
 

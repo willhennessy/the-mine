@@ -146,7 +146,6 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         // TODO: fork mainnet to test these ownership require statements
         // require(isEligiblePlayer(itemId, bagAddress), "Sender does not own eligible loot");
         // require(block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME);
-        console.log("sender:", msg.sender);
         _mine(itemId, bagAddress);
     }
 
