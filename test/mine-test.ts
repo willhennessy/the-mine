@@ -61,6 +61,7 @@ async function mineFromAddress(mine: Mine, addr: string, loot: number) {
   const signer = await ethers.getSigner(addr); 
   const data = (await mine.mine(loot, LOOT_CONTRACT_ADDRESS)).data;
 
+  console.log("signer addr:", signer.address);
   expect(
     await signer.sendTransaction({
       to: mine.address,
@@ -118,7 +119,33 @@ describe("Mine", function () {
     const mine = await Mine.deploy() as Mine;
     await mine.deployed();
 
-    await mineFromAddress(mine, ADDR_WITH_LOOT_AND_MLOOT, 1);
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [ADDR_WITH_LOOT_AND_MLOOT],
+    });
+  
+    const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
+
+    const functionParams = [
+      7650,
+      LOOT_CONTRACT_ADDRESS
+    ];  
+    const data = Mine.interface.encodeFunctionData("mine", functionParams);
+
+    expect(
+      await signer.sendTransaction({
+        to: mine.address,
+        from: signer.address,
+        data: data,
+      })
+    ).to.emit(mine, 'TransferSingle');
+  
+    await hre.network.provider.request({
+      method: "hardhat_stopImpersonatingAccount",
+      params: [ADDR_WITH_LOOT_AND_MLOOT],
+    });
+
+    // await mineFromAddress(mine, ADDR_WITH_LOOT_AND_MLOOT, 7650);
     
     await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
     expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))

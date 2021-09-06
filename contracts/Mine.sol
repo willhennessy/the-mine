@@ -144,7 +144,11 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
 
     function mine(uint256 itemId, address bagAddress) external nonReentrant {
         // TODO: fork mainnet to test these ownership require statements
-        // require(isEligiblePlayer(itemId, bagAddress), "Sender does not own eligible loot");
+        console.log("mine sender:", msg.sender);
+        require(
+            isEligiblePlayer(itemId, bagAddress),
+            "Sender does not own eligible loot"
+        );
         // require(block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME);
         _mine(itemId, bagAddress);
     }
@@ -205,6 +209,8 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         returns (bool)
     {
         require(eligibleBags[bagAddress], "Bag address is not eligible");
+        console.log("sender:", msg.sender);
+        console.log("owner:", IERC721(bagAddress).ownerOf(itemId));
         require(
             msg.sender == IERC721(bagAddress).ownerOf(itemId),
             "Sender does not own item ID"
