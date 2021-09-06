@@ -142,14 +142,19 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         _mint(msg.sender, COAL, capacity, "");
     }
 
+    /// @notice mine for ore and gems using your loot bag up to once per recharge period.
+    /// @param itemId the ID of the loot within the bagAddress contract
+    /// @param bagAddress the address of the loot bag contract
     function mine(uint256 itemId, address bagAddress) external nonReentrant {
-        // TODO: fork mainnet to test these ownership require statements
-        console.log("mine sender:", msg.sender);
+        require(eligibleBags[bagAddress], "Bag address is not eligible");
         require(
-            isEligiblePlayer(itemId, bagAddress),
-            "Sender does not own eligible loot"
+            msg.sender == IERC721(bagAddress).ownerOf(itemId),
+            "Sender does not own item ID"
         );
-        // require(block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME);
+        require(
+            block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME,
+            "Bag is recharging"
+        );
         _mine(itemId, bagAddress);
     }
 
@@ -157,11 +162,17 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     /// @param loot: the ID of your loot (0,8001) or mLoot (8000+)
     function mineWithLoot(uint256 loot) external nonReentrant {
         if (loot > 0 && loot < 8001) {
-            // require(isEligiblePlayer(itemId, lootContractAddress), "Sender does not own eligible loot");
+            // require(
+            //     msg.sender == IERC721(lootContractAddress).ownerOf(loot),
+            //     "Sender does not own item ID"
+            // );
             // require(block.timestamp > lastMinedTime[lootContractAddress][itemId] + RECHARGE_TIME);
             _mine(loot, lootContractAddress);
         } else if (loot > 8000 && loot < (block.number / 10) + 1) {
-            // require(isEligiblePlayer(itemId, mLootContractAddress), "Sender does not own eligible mLoot");
+            // require(
+            //     msg.sender == IERC721(mLootContractAddress).ownerOf(loot),
+            //     "Sender does not own item ID"
+            // );
             // require(block.timestamp > lastMinedTime[mLootContractAddress][itemId] + RECHARGE_TIME);
             _mine(loot, mLootContractAddress);
         }
@@ -200,21 +211,5 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         chance.push(newChance);
         amountDivisor.push(newAmountDivisor);
         emit OreTypeAdded(newName, newChance, newAmountDivisor);
-    }
-
-    /// @notice returns true if msg.sender owns the specified loot bag
-    function isEligiblePlayer(uint256 itemId, address bagAddress)
-        public
-        view
-        returns (bool)
-    {
-        require(eligibleBags[bagAddress], "Bag address is not eligible");
-        console.log("sender:", msg.sender);
-        console.log("owner:", IERC721(bagAddress).ownerOf(itemId));
-        require(
-            msg.sender == IERC721(bagAddress).ownerOf(itemId),
-            "Sender does not own item ID"
-        );
-        return true;
     }
 }

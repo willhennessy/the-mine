@@ -11,9 +11,16 @@ const NUM_ORES = 11;
 const COAL = 10;
 const LOOT_CONTRACT_ADDRESS = "0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7";
 const mLOOT_CONTRACT_ADDRESS = "0x1dfe7Ca09e99d10835Bf73044a23B73Fc20623DF";
+const INELIGIBLE_CONTRACT_ADDRESS = "0xc00e94cb662c3520282e6f5717214004a7f26888";
 const AGLD_GOVERNANCE_ADDR = "0xcD814C83198C15A542F9A13FAf84D518d1744ED1";
 
+const ADDR_WITH_NO_LOOT = "0x04196627190ff624492427217d853deaa270f9d2";
 const ADDR_WITH_LOOT_AND_MLOOT = "0xb0623c91c65621df716ab8afe5f66656b21a9108";
+const LOOT_ID = 7650;
+const mLOOT_ID = 12344;
+/** Warning: the above constants assume that ADDR_WITH_LOOT_AND_MLOOT
+    truly owns LOOT_ID and mLOOT_ID on the mainnet fork. This could change
+    at any time and cause tests to fail. (but he has diamond hands) **/
 
 /// Get the ore & gem balance for a single address
 async function getBalances(mine: Mine, address: string) {
@@ -52,18 +59,23 @@ async function logAccountBalance(mine: Mine, address: string) {
   console.table(await getBalances(mine, address));
 }
 
-async function mineFromAddress(mine: Mine, addr: string, loot: number) {
+async function mineFromAddress(mineFactory: Mine__factory, mine: Mine, sender: string, loot: number, bagAddress: string) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [addr],
+    params: [sender],
   });
 
-  const signer = await ethers.getSigner(addr); 
-  const data = (await mine.mine(loot, LOOT_CONTRACT_ADDRESS)).data;
+  const signer = await ethers.getSigner(sender); 
 
-  console.log("signer addr:", signer.address);
-  expect(
-    await signer.sendTransaction({
+  // build the TransactionRequest.data parameter
+  const functionParams = [
+    loot,
+    bagAddress
+  ];  
+  const data = mineFactory.interface.encodeFunctionData("mine", functionParams);
+
+  await expect(
+    signer.sendTransaction({
       to: mine.address,
       from: signer.address,
       data: data,
@@ -72,33 +84,267 @@ async function mineFromAddress(mine: Mine, addr: string, loot: number) {
 
   await hre.network.provider.request({
     method: "hardhat_stopImpersonatingAccount",
-    params: [ADDR_WITH_LOOT_AND_MLOOT],
+    params: [sender],
   });
 }
 
 describe("Mine", function () {
-  it("Should construct the contract with correct values and owner", async function () {
-    const [owner, addr1] = await ethers.getSigners();
-    const Mine = await ethers.getContractFactory("Mine") as Mine__factory;
-    const mine = await Mine.deploy() as Mine;
-    await mine.deployed();
+  /** Deploy Test Cases **/
+  describe("Deploy Test Cases", function () {
+    it("Should construct the contract with correct values and owner", async function () {
+      const [owner, addr1] = await ethers.getSigners();
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
 
-    expect(await mine.balanceOf(owner.address, 0)).to.equal(0);
-    expect(await mine.owner()).to.equal(AGLD_GOVERNANCE_ADDR);
+      expect(await mine.balanceOf(owner.address, 0)).to.equal(0);
+      expect(await mine.owner()).to.equal(AGLD_GOVERNANCE_ADDR);
+    });
+
+    it("Should mine and log values", async function () {
+      const addrs = await ethers.getSigners();
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await mine.mineWithLoot(1);
+      await mine.connect(addrs[1]).mineWithLoot(2);
+      await mine.connect(addrs[2]).mineWithLoot(3);
+
+      await logAccountBalances(mine, [addrs[0].address, addrs[1].address, addrs[2].address]);
+    });
   });
 
-  it("Should mine and log values", async function () {
-    const addrs = await ethers.getSigners();
-    const Mine = await ethers.getContractFactory("Mine") as Mine__factory;
-    const mine = await Mine.deploy() as Mine;
-    await mine.deployed();
+  /** Loot Mining Test Cases **/
+  describe("Loot Mining Test Cases", function () {
+    it("Loot owner should be able to mine", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
 
-    await mine.mineWithLoot(1);
-    await mine.connect(addrs[1]).mineWithLoot(2);
-    await mine.connect(addrs[2]).mineWithLoot(3);
+      await mineFromAddress(mineFactory, mine, ADDR_WITH_LOOT_AND_MLOOT, LOOT_ID, LOOT_CONTRACT_ADDRESS);
+      
+      await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
+      expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))
+        .to.be.above(BigNumber.from(0));
+    });
 
-    await logAccountBalances(mine, [addrs[0].address, addrs[1].address, addrs[2].address]);
+    it("Loot owner should NOT be able to mine with the same bag before recharge time", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await hre.network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [ADDR_WITH_LOOT_AND_MLOOT],
+      });
+
+      const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
+
+      // build the TransactionRequest.data parameter
+      const functionParams = [
+        LOOT_ID,
+        LOOT_CONTRACT_ADDRESS
+      ];  
+      const data = mineFactory.interface.encodeFunctionData("mine", functionParams);
+
+      // first mine should succeed
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.emit(mine, 'TransferSingle');
+
+      // second mine should fail
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.be.revertedWith('Bag is recharging');    
+
+      await hre.network.provider.request({
+        method: "hardhat_stopImpersonatingAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+    });
+
+    it("Non-loot owner should NOT be able to mine", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await hre.network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+
+      const signer = await ethers.getSigner(ADDR_WITH_NO_LOOT); 
+
+      // build the TransactionRequest.data parameter
+      const functionParams = [
+        1000,
+        LOOT_CONTRACT_ADDRESS
+      ];  
+      const data = mineFactory.interface.encodeFunctionData("mine", functionParams);
+
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.be.revertedWith('Sender does not own item ID');    
+
+      await hre.network.provider.request({
+        method: "hardhat_stopImpersonatingAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+    });
+
+    it("Sender should NOT be able to mine with ineligible loot bag", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await expect(mine.mine(1000, INELIGIBLE_CONTRACT_ADDRESS))
+        .to.be.revertedWith("Bag address is not eligible");
+    });
+
+    it("Loot owner should be able to mine", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await mineFromAddress(mineFactory, mine, ADDR_WITH_LOOT_AND_MLOOT, LOOT_ID, LOOT_CONTRACT_ADDRESS);
+      
+      await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
+      expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))
+        .to.be.above(BigNumber.from(0));
+    });
   });
+  
+  /** mLoot Mining Test Cases **/
+  describe("mLoot Mining Test Cases", function () {
+    it("mLoot owner should be able to mine", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await mineFromAddress(mineFactory, mine, ADDR_WITH_LOOT_AND_MLOOT, mLOOT_ID, mLOOT_CONTRACT_ADDRESS);
+      
+      await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
+      expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))
+        .to.be.above(BigNumber.from(0));
+    });
+
+    it("mLoot owner should NOT be able to mine with the same bag before recharge time", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await hre.network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [ADDR_WITH_LOOT_AND_MLOOT],
+      });
+
+      const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
+
+      // build the TransactionRequest.data parameter
+      const functionParams = [
+        mLOOT_ID,
+        mLOOT_CONTRACT_ADDRESS
+      ];  
+      const data = mineFactory.interface.encodeFunctionData("mine", functionParams);
+
+      // first mine should succeed
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.emit(mine, 'TransferSingle');
+
+      // second mine should fail
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.be.revertedWith('Bag is recharging');    
+
+      await hre.network.provider.request({
+        method: "hardhat_stopImpersonatingAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+    });
+
+    it("Non-mLoot owner should NOT be able to mine", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await hre.network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+
+      const signer = await ethers.getSigner(ADDR_WITH_NO_LOOT); 
+
+      // build the TransactionRequest.data parameter
+      const functionParams = [
+        mLOOT_ID,
+        mLOOT_CONTRACT_ADDRESS
+      ];  
+      const data = mineFactory.interface.encodeFunctionData("mine", functionParams);
+
+      await expect(
+        signer.sendTransaction({
+          to: mine.address,
+          from: signer.address,
+          data: data,
+        })
+      ).to.be.revertedWith('Sender does not own item ID');    
+
+      await hre.network.provider.request({
+        method: "hardhat_stopImpersonatingAccount",
+        params: [ADDR_WITH_NO_LOOT],
+      });
+    });
+
+    it("Sender should NOT be able to mine with ineligible mLoot bag", async function () {
+      const mineFactory = await ethers.getContractFactory("Mine") as Mine__factory;
+      const mine = await mineFactory.deploy() as Mine;
+      await mine.deployed();
+
+      await expect(mine.mine(20000, INELIGIBLE_CONTRACT_ADDRESS))
+        .to.be.revertedWith("Bag address is not eligible");
+    });
+  });
+
+
+  /*
+  [TODO: TEST CASES]
+
+  the mineWithLoot() function. Or should I scrap it? Effectively wastes gas for users.
+
+  Governance Use Cases
+    1. works from governance (emits events, then works)
+    2. does not work from other addressess
+
+    A. addEligibleBag
+      i. subsequently mine() calls for that bag address work and are eligible
+    B. setRechargeTime
+    C. setCapacity
+    D. addOreType
+      i. subsequently, that ore actually appears upon mining (give high probability for test case)
+
+  */
 
   /*
   it("Task: print aggregate result of 1000 mines", async function () {
@@ -112,65 +358,5 @@ describe("Mine", function () {
     }
     await logAccountBalance(mine, addrs[0].address);
   });
-  */
-
-  it("Loot owner should be able to mine", async function () {
-    const Mine = await ethers.getContractFactory("Mine") as Mine__factory;
-    const mine = await Mine.deploy() as Mine;
-    await mine.deployed();
-
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [ADDR_WITH_LOOT_AND_MLOOT],
-    });
-  
-    const signer = await ethers.getSigner(ADDR_WITH_LOOT_AND_MLOOT); 
-
-    const functionParams = [
-      7650,
-      LOOT_CONTRACT_ADDRESS
-    ];  
-    const data = Mine.interface.encodeFunctionData("mine", functionParams);
-
-    expect(
-      await signer.sendTransaction({
-        to: mine.address,
-        from: signer.address,
-        data: data,
-      })
-    ).to.emit(mine, 'TransferSingle');
-  
-    await hre.network.provider.request({
-      method: "hardhat_stopImpersonatingAccount",
-      params: [ADDR_WITH_LOOT_AND_MLOOT],
-    });
-
-    // await mineFromAddress(mine, ADDR_WITH_LOOT_AND_MLOOT, 7650);
-    
-    await logAccountBalance(mine, ADDR_WITH_LOOT_AND_MLOOT);
-    expect(await mine.balanceOf(ADDR_WITH_LOOT_AND_MLOOT, COAL))
-      .to.be.above(BigNumber.from(0));
-  });
-
-
-  /*
-  [TEST CASES to write]
-  mine and mineWithLoot:
-    loot and mLoot players are eligible immediately after constructor
-    players specifying the loot and mLoot contract, but don't actually own item, are not eligible
-    players specifying a non-whitelisted address are not eligible
-    mining fails before recharge time has elapsed
-
-  Governance Use Cases
-    1. works from governance (emits events, then works)
-    2. does not work from other addressess
-
-    A. addEligibleBag
-      i. subsequently mine() calls for that bag address work and are eligible
-    B. setRechargeTime
-    C. setCapacity
-    D. addOreType
-      i. subsequently, that ore actually appears upon mining (give high probability for test case)
-
   */
 });
