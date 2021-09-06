@@ -55,33 +55,33 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     uint8 private CAPACITY = 8;
 
     /** Probability of Ores & Gems (out of 1000) */
-    uint16[] private chance = [
-        1, // "Diamond"
-        10, // "Ruby"
-        50, // "Emerald"
-        80, // "Sapphire"
-        10, // "Buterinium Ore"
-        50, // "Calamitite Ore"
-        100, // "Trillium Ore"
-        250, // "Mithril Ore"
-        400, // "Pyrite Ore"
-        600, // "Iron Ore"
-        1000 // "Coal"
+    uint16[] internal chance = [
+        1, // Diamond
+        10, // Ruby
+        50, // Emerald
+        80, // Sapphire
+        10, // Buterinium Ore
+        50, // Calamitite Ore
+        100, // Trillium Ore
+        250, // Mithril Ore
+        400, // Pyrite Ore
+        600, // Iron Ore
+        1000 // Coal
     ];
 
     /** Probability of Ores & Gems (out of 1000) */
-    uint16[] private amountDivisor = [
-        1, // "Diamond"
-        10, // "Ruby"
-        50, // "Emerald"
-        80, // "Sapphire"
-        10, // "Buterinium Ore"
-        25, // "Calamitite Ore"
-        50, // "Trillium Ore"
-        125, // "Mithril Ore"
-        200, // "Pyrite Ore"
-        200, // "Iron Ore"
-        1000 // "Coal"
+    uint16[] internal amountDivisor = [
+        1, // Diamond
+        10, // Ruby
+        50, // Emerald
+        80, // Sapphire
+        10, // Buterinium Ore
+        25, // Calamitite Ore
+        50, // Trillium Ore
+        125, // Mithril Ore
+        200, // Pyrite Ore
+        200, // Iron Ore
+        1000 // Coal
     ];
 
     uint16 private STEP = 10**3;
@@ -124,7 +124,6 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         uint8 index = 0;
         while (capacity > 0 && index < names.length) {
             uint16 haul = uint16(rand % STEP);
-            //console.log("haul:", index, haul);
 
             if (index != COAL && haul < chance[index]) {
                 uint8 amount = min(
@@ -162,18 +161,26 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     /// @param loot: the ID of your loot (0,8001) or mLoot (8000+)
     function mineWithLoot(uint256 loot) external nonReentrant {
         if (loot > 0 && loot < 8001) {
-            // require(
-            //     msg.sender == IERC721(lootContractAddress).ownerOf(loot),
-            //     "Sender does not own item ID"
-            // );
-            // require(block.timestamp > lastMinedTime[lootContractAddress][itemId] + RECHARGE_TIME);
+            require(
+                msg.sender == IERC721(lootContractAddress).ownerOf(loot),
+                "Sender does not own item ID"
+            );
+            require(
+                block.timestamp >
+                    lastMinedTime[lootContractAddress][loot] + RECHARGE_TIME,
+                "Bag is recharging"
+            );
             _mine(loot, lootContractAddress);
         } else if (loot > 8000 && loot < (block.number / 10) + 1) {
-            // require(
-            //     msg.sender == IERC721(mLootContractAddress).ownerOf(loot),
-            //     "Sender does not own item ID"
-            // );
-            // require(block.timestamp > lastMinedTime[mLootContractAddress][itemId] + RECHARGE_TIME);
+            require(
+                msg.sender == IERC721(mLootContractAddress).ownerOf(loot),
+                "Sender does not own item ID"
+            );
+            require(
+                block.timestamp >
+                    lastMinedTime[mLootContractAddress][loot] + RECHARGE_TIME,
+                "Bag is recharging"
+            );
             _mine(loot, mLootContractAddress);
         }
     }
