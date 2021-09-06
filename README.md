@@ -8,7 +8,7 @@ Pack up your loot and hit the mines to start digging for rare ore and gems!
 
 ## Who can play
 
-All wallets holding LOOT or mLOOT can dig for treasure in The Mine. All players have an equal chance to get their hands dirty and build an in-game fortune!
+All wallets holding Loot or mLoot can dig for treasure in The Mine once per day, per bag of Loot or mLoot. In The Mines, all players have an equal chance to get their hands dirty and labor for an in-game fortune!
 
 ## How to play
 
@@ -22,15 +22,15 @@ All wallets holding LOOT or mLOOT can dig for treasure in The Mine. All players 
 
 **2. Compile the contracts >** `yarn hardhat compile`
 
-**3. Run the unit tests >**
-
-```
-yarn hardhat node —fork <your_alchemy_project_key>
-yarn hardhat test
-```
+**3. Run the unit tests >** ```yarn hardhat test```
 
 **4. Deploy contracts >** `yarn hardhat run scripts/deploy.ts`
 
 # Loot Governance
 
 TODO
+
+# Future work
+
+* The Forge (for Adventurers)
+* Web interface for mining: mine button, display recharge time of each bag, display mining inventory
