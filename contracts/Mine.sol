@@ -41,14 +41,13 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         "Coal"
     ];
 
-    /// @notice Mapping of item contract addresses
-    /// if true, wallets holding an item frmo this bag are eligible to mine */
+    /// @notice Mapping of loot contract addresses that are eligible to play The Mine
     mapping(address => bool) private eligibleBags;
 
     /// @notice record of the last timestamp each loot bag mined
     mapping(address => mapping(uint256 => uint256)) private lastMinedTime;
 
-    /// @notice the minimum recharge time necessary between each mine, per loot bag
+    /// @notice the minimum recharge time required between each mine, per loot bag
     uint256 private RECHARGE_TIME = 86400;
 
     /// @notice the number of Ore or Gems a miner will receive from a single mine
@@ -69,7 +68,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         1000 // Coal
     ];
 
-    /** Probability of Ores & Gems (out of 1000) */
+    /** The amount factor to determine how many Ores & Gems the miner receives */
     uint16[] internal amountDivisor = [
         5, // Diamond
         10, // Ruby
@@ -84,6 +83,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         1000 // Coal
     ];
 
+    /// @notice the step size to iterate through the random number
     uint16 private STEP = 10**3;
 
     event EligibleBagAdded(address indexed bagAddress);
@@ -106,6 +106,9 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         return uint256(keccak256(abi.encodePacked(input)));
     }
 
+    /// @notice internal function to execute the mining action
+    /// @param itemId the internal ID of the item in bagAddress contract
+    /// @param bagAddress the contract address of the NFT item (ex. Loot)
     function _mine(uint256 itemId, address bagAddress) internal {
         lastMinedTime[bagAddress][itemId] = block.timestamp;
         uint8 capacity = CAPACITY;
@@ -140,8 +143,8 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     }
 
     /// @notice mine for ore and gems using your loot bag up to once per recharge period.
-    /// @param itemId the ID of the loot within the bagAddress contract
-    /// @param bagAddress the address of the loot bag contract
+    /// @param itemId the internal ID of the item in bagAddress contract
+    /// @param bagAddress the contract address of the NFT item (ex. Loot)
     function mine(uint256 itemId, address bagAddress) external nonReentrant {
         require(eligibleBags[bagAddress], "Bag address is not eligible");
         require(
