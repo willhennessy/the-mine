@@ -1,19 +1,18 @@
-# the-mine
+# The Mine (for Adventurers)
 
-An open source mine for Loot players to dig for rare ore and gems
+Grab your pickaxe! The Mine is an open source area for Loot players to dig for rare ore and gems.
 
-# Basic Sample Hardhat Project
+# Developers
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+**1. Install dependencies >** `yarn install`
 
-Try running some of the following tasks:
+**2. Compile the contracts >** `yarn hardhat compile`
 
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
+**3. Run the unit tests >**
+
 ```
+yarn hardhat node —fork <your_alchemy_project_key>
+yarn hardhat test
+```
+
+**4. Deploy contracts >** `yarn hardhat run scripts/deploy.ts`

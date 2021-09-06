@@ -41,17 +41,18 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         "Coal"
     ];
 
-    /** Mapping of item contract addresses; if true, this item makes player eligible to mine */
-    mapping(address => bool) public eligibleBags;
+    /// @notice Mapping of item contract addresses
+    /// if true, wallets holding an item frmo this bag are eligible to mine */
+    mapping(address => bool) private eligibleBags;
 
     /// @notice record of the last timestamp each loot bag mined
-    mapping(address => mapping(uint256 => uint256)) public lastMinedTime;
+    mapping(address => mapping(uint256 => uint256)) private lastMinedTime;
 
     /// @notice the minimum recharge time necessary between each mine, per loot bag
-    uint256 public RECHARGE_TIME = 86400;
+    uint256 private RECHARGE_TIME = 86400;
 
     /// @notice the number of Ore or Gems a miner will receive from a single mine
-    uint8 public CAPACITY = 8;
+    uint8 private CAPACITY = 8;
 
     /** Probability of Ores & Gems (out of 1000) */
     uint16[] private chance = [
@@ -100,17 +101,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         // Transfer ownership to the Loot DAO
         transferOwnership(0xcD814C83198C15A542F9A13FAf84D518d1744ED1);
 
-        _mint(msg.sender, DIAMOND, 1, "");
-        // _mint(msg.sender, RUBY, 1, "");
-        // _mint(msg.sender, EMERALD, 1, "");
-        // _mint(msg.sender, SAPPHIRE, 1, "");
-        // _mint(msg.sender, BUTERINIUM, 1, "");
-        // _mint(msg.sender, CALAMITITE, 1, "");
-        // _mint(msg.sender, TRILLIUM, 1, "");
-        // _mint(msg.sender, MITHRIL, 1, "");
-        // _mint(msg.sender, PYRITE, 1, "");
-        // _mint(msg.sender, IRON, 1, "");
-        // _mint(msg.sender, COAL, 1, "");
+        // _mint(msg.sender, DIAMOND, 1, "");
     }
 
     function random(string memory input) internal pure returns (uint256) {
@@ -118,6 +109,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function _mine(uint256 itemId, address bagAddress) internal {
+        lastMinedTime[bagAddress][itemId] = block.timestamp;
         uint8 capacity = CAPACITY;
         uint256 rand = random(
             string(
@@ -132,7 +124,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         uint8 index = 0;
         while (capacity > 0 && index < names.length) {
             uint16 haul = uint16(rand % STEP);
-            console.log("haul:", index, haul);
+            //console.log("haul:", index, haul);
 
             if (index != COAL && haul < chance[index]) {
                 uint8 amount = min(
@@ -148,18 +140,19 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
         }
         // finally, fill all remaining slots with coal
         _mint(msg.sender, COAL, capacity, "");
-        lastMinedTime[bagAddress][itemId] = block.timestamp;
     }
 
-    function mine(uint256 itemId, address bagAddress) public nonReentrant {
+    function mine(uint256 itemId, address bagAddress) external nonReentrant {
+        // TODO: fork mainnet to test these ownership require statements
         // require(isEligiblePlayer(itemId, bagAddress), "Sender does not own eligible loot");
         // require(block.timestamp > lastMinedTime[bagAddress][itemId] + RECHARGE_TIME);
+        console.log("sender:", msg.sender);
         _mine(itemId, bagAddress);
     }
 
     /// @notice convenience function for holders of original Loot and mLoot
     /// @param loot: the ID of your loot (0,8001) or mLoot (8000+)
-    function mineWithLoot(uint256 loot) public nonReentrant {
+    function mineWithLoot(uint256 loot) external nonReentrant {
         if (loot > 0 && loot < 8001) {
             // require(isEligiblePlayer(itemId, lootContractAddress), "Sender does not own eligible loot");
             // require(block.timestamp > lastMinedTime[lootContractAddress][itemId] + RECHARGE_TIME);
@@ -177,7 +170,7 @@ contract Mine is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function addEligibleBag(address bagAddress) public onlyOwner {
-        // TODO: require the address is an NFT and won't break the code
+        // TODO: require the address is an NFT so it won't break the code
         eligibleBags[bagAddress] = true;
         emit EligibleBagAdded(bagAddress);
     }

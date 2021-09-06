@@ -28,4 +28,12 @@ task("accounts", "Prints the list of accounts", async (args, hre) => {
     alwaysGenerateOverloads: false, // should overloads with full signatures like deposit(uint256) be generated always, even if there are no overloads?
     externalArtifacts: ['externalArtifacts/*.json'], // optional array of glob patterns with external artifacts to process (for example external libs from node_modules)
   },
+  networks: {
+    hardhat: {
+      forking: {
+        // personal Alchemy key; please don't abuse; it will hit daily cap
+        url: "https://eth-mainnet.alchemyapi.io/v2/x__HXqJgEN47SKwQOEvMo5GjBpzZJCHo"
+      }
+    }
+  }
 };
